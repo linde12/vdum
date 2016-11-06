@@ -1,15 +1,10 @@
-export const h = function (type, props, ...children) {
-  return {type, props: props || {}, children}
-}
-
-const isEventProp = (name) => /^on/.test(name)
-const isCustomProp = (name) => isEventProp(name)
-const isPrimitive = (node) => {
-  return typeof node === 'string' ||
-    typeof node === 'number' ||
-    typeof node === 'boolean'
-}
-
+import {
+  isPrimitive,
+  isFunctionalComponent,
+  isFunction,
+  isCustomProp,
+  isEventProp,
+} from './is'
 const removeAttribute = ($target, name, value) => {
   if (isCustomProp(name)) {
     return;
@@ -63,8 +58,9 @@ export const createElement = (vnode) => {
     return document.createTextNode(vnode)
   }
   const $el = document.createElement(vnode.type)
-  debugger;
-  vnode.$node = $el // this should not be handeled by vdom
+  if (vnode._component) {
+    vnode._component.$node = $el
+  }
   patchProps($el, vnode.props)
   addEventListeners($el, vnode.props)
   vnode.children
@@ -81,10 +77,40 @@ const changed = (node1, node2) => {
   )
 }
 
+const resolveComponents = (newNode, oldNode) => {
+  if (isPrimitive(newNode)) {
+    return newNode
+  }
+  while (isFunctionalComponent(newNode.type)) {
+    const props = Object.assign({}, newNode.props, {children: newNode.children})
+    newNode = newNode.type(props)
+  }
+
+  let component = oldNode && oldNode._component
+
+  if (isFunction(newNode.type)) {
+    const props = Object.assign({}, newNode.props, {children: newNode.children})
+    component = component || new newNode.type(props)
+    newNode = component.render()
+    component.vnode = newNode
+    newNode._component = component
+  }
+
+  for (let i = 0; i < newNode.children.length; i++) {
+    newNode.children[i] = resolveComponents(
+      newNode.children[i],
+      oldNode && oldNode.children[i]
+    )
+  }
+  return newNode
+}
+
 export const patch = ($parent, newNode, oldNode, index = 0) => {
-  if (!oldNode) {
+  newNode = resolveComponents(newNode, oldNode)
+
+  if (typeof oldNode === 'undefined') {
     $parent.appendChild(createElement(newNode))
-  } else if (!newNode) {
+  } else if (typeof newNode === 'undefined') {
     $parent.removeChild($parent.childNodes[index])
   } else if (changed(newNode, oldNode)) {
     $parent.replaceChild(createElement(newNode), $parent.childNodes[index])

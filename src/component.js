@@ -8,11 +8,12 @@ export default class {
   setState (state) {
     this._dirty = true
     this.state = Object.assign({}, this.state, state)
-    console.log('All your base are belong to us', this.vnode.$node)
-    debugger;
-    const $node = this.vnode.$node
-    this.vnode = patch(this.vnode.$node.parentNode, this.render(), this.vnode)
-    this.vnode.$node = $node
+    const $node = this.$node
+    for (let i = 0; i < $node.parentNode.childNodes.length; i++) {
+      if ($node.parentNode.childNodes[i] === $node) {
+        this.vnode = patch($node.parentNode, this.render(), this.vnode, i)
+      }
+    }
   }
 
   render () {}

@@ -1,4 +1,3 @@
 export {patch} from './vdom'
-export {createElement} from './vdom'
-export {h} from './vdom'
+export {default as h} from './h'
 export {default as makeRenderer} from './vdom'

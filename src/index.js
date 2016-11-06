@@ -1,23 +1,33 @@
 /** @jsx h */
-import {render, h} from './renderer'
+import {patch, h} from './vdom'
 import Component from './component'
 
-const Summary = ({name}) => <div>Hello {name}</div>
+const Summary = ({name}) => <div>Hello {name}. Changed only via props</div>
 
 class Another extends Component {
   constructor () {
     super()
-    this.state = {text: 'World!'}
+    const list = []
+    console.log('parent vdom becomes out of sync with children... does it matter? - yes, partially')
+    console.log('because the subtree is then re-diffed and applied to the DOM instead of being seen')
+    console.log('as the same(no change)')
+    for (let i = 0; i < 1000; i++) {
+      list.push(i)
+    }
+    this.state = {text: 'World!', list}
     this.ch = this.ch.bind(this)
   }
   ch () {
-    this.setState({text: 'Oscar!'})
+    const list = this.state.list.reverse()
+    this.setState({text: 'Oscar!', list})
   }
   render () {
-    let another;
     return (
       <span onClick={this.ch}>
-        <div>{this.state.text}</div>
+        <div>Text: {this.state.text}</div>
+        <ul>
+          {this.state.list.map(n => <li>{n}</li>)}
+        </ul>
       </span>
     )
   }
@@ -58,5 +68,4 @@ class UserForm extends Component {
 
 const $root = document.getElementById('root')
 const vtree = <UserForm />
-console.log(vtree)
-render(vtree, $root)
+patch($root, vtree)

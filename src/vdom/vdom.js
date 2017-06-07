@@ -6,7 +6,7 @@ import {
   isEventProp,
 } from './is'
 const removeAttribute = ($target, name, value) => {
-  if (isCustomProp(name)) {
+  if (isEventProp(name)) {
     return;
   } else if (value === 'className') {
     $target.removeAttribute('class')
@@ -19,7 +19,7 @@ const removeAttribute = ($target, name, value) => {
 }
 
 const patchProp = ($target, propName, newValue, oldValue) => {
-  if (isCustomProp(propName)) {
+  if (isEventProp(propName)) {
     return
   }
   if (!newValue) {
@@ -41,8 +41,21 @@ const patchProps = ($target, newProps, oldProps = {}) => {
   })
 }
 
+const shouldUseChangeEvent = ($target) => {
+  const nodeName = $target.nodeName && $target.nodeName.toLowerCase()
+  return nodeName === 'select' || nodeName === 'input' && $target.type === 'file'
+}
+
 const addEventListener = ($target, event, cb) => {
-  $target.addEventListener(event, cb)
+  if (event === 'change') {
+    if (shouldUseChangeEvent($target)) {
+      $target.addEventListener(event, cb)
+    } else {
+      $target.addEventListener('input', cb)
+    }
+  } else {
+    $target.addEventListener(event, cb)
+  }
 }
 
 const addEventListeners = ($target, props) => {
@@ -91,7 +104,11 @@ const resolveComponents = (newNode, oldNode) => {
   if (isFunction(newNode.type)) {
     const props = Object.assign({}, newNode.props, {children: newNode.children})
     component = component || new newNode.type(props)
-    newNode = component.render()
+    if (component.shouldComponentUpdate()) {
+      newNode = component.render()
+    } else {
+      newNode = oldNode.vnode
+    }
     component.vnode = newNode
     newNode._component = component
   }
@@ -136,4 +153,9 @@ export const patch = ($parent, newNode, oldNode, index = 0) => {
   }
 
   return newNode
+}
+
+export const mount = (vtree, $parent) => {
+  $parent.innerHTML = ''
+  return patch($parent, vtree)
 }

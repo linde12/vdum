@@ -4,7 +4,13 @@ export default class {
     this.props = props || {}
     this.context = context || {}
     this.state = {}
+    this._dirty = true
   }
+
+  shouldComponentUpdate () {
+    return this._dirty
+  }
+
   setState (state) {
     this._dirty = true
     this.state = Object.assign({}, this.state, state)

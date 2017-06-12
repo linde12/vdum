@@ -5,32 +5,22 @@ import {
   isCustomProp,
   isEventProp,
 } from './is'
-const removeAttribute = ($target, name, value) => {
-  if (isEventProp(name)) {
-    return;
-  } else if (value === 'className') {
-    $target.removeAttribute('class')
-  } else {
-    $target.removeAttribute(name)
-    if (typeof value === 'boolean') {
-      $target[name] = false
-    }
-  }
-}
 
 const patchProp = ($target, propName, newValue, oldValue) => {
-  if (isEventProp(propName)) {
+  if (isEventProp(propName) || propName === 'key') {
     return
   }
-  if (!newValue) {
-    removeAttribute($target, propName, oldValue)
-  } else if (!oldValue || newValue !== oldValue) {
+
+  if (propName === 'ref') {
+    if (oldValue) oldValue(null)
+    if (newValue) newValue($target)
+  } else if (propName !== 'list' && propName !== 'type' && propName in $target) {
+    $target[propName] = newValue == null ? '' : newValue
+    if (newValue == null || newValue === false) $target.removeAttribute(propName)
+  } else if (newValue == null || newValue === false) {
+    $target.removeAttribute(propName)
+  } else {
     $target.setAttribute(propName, newValue)
-    if (typeof newValue === 'boolean') {
-      $target[propName] = newValue
-    }
-  } else if (typeof newValue === 'boolean') {
-    $target[propName] = newValue
   }
 }
 
@@ -41,18 +31,18 @@ const patchProps = ($target, newProps, oldProps = {}) => {
   })
 }
 
-const shouldUseChangeEvent = ($target) => {
+const changeEvent = ($target) => {
   const nodeName = $target.nodeName && $target.nodeName.toLowerCase()
-  return nodeName === 'select' || nodeName === 'input' && $target.type === 'file'
+  if (nodeName === 'select' || nodeName === 'input' && $target.type === 'file') {
+    return 'change'
+  }
+  return 'input'
 }
 
 const addEventListener = ($target, event, cb) => {
   if (event === 'change') {
-    if (shouldUseChangeEvent($target)) {
-      $target.addEventListener(event, cb)
-    } else {
-      $target.addEventListener('input', cb)
-    }
+    // determine if we're going to use 'input' or 'change' event
+    $target.addEventListener(changeEvent($target), cb)
   } else {
     $target.addEventListener(event, cb)
   }
@@ -104,7 +94,7 @@ const resolveComponents = (newNode, oldNode) => {
   if (isFunction(newNode.type)) {
     const props = Object.assign({}, newNode.props, {children: newNode.children})
     component = component || new newNode.type(props)
-    if (component.shouldComponentUpdate()) {
+    if (component.shouldComponentUpdate(newNode.props, component.state)) {
       newNode = component.render()
     } else {
       newNode = oldNode.vnode
@@ -139,7 +129,7 @@ export const patch = ($parent, newNode, oldNode, index = 0) => {
       oldNode.props
     )
 
-    // Patch children
+    // Patch children, inefficient for now(no keying)
     const newLen = newNode.children.length
     const oldLen = oldNode.children.length
     for (let i = 0; i < Math.max(newLen, oldLen); i++) {

@@ -1,6 +1,5 @@
 /** @jsx h */
-import {mount, h} from './vdom'
-import Component from './component'
+import { mount, h, Component } from './vdom'
 
 class User extends Component {
   constructor () {
